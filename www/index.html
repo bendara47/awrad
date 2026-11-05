@@ -389,13 +389,22 @@ async function scheduleAll(force){if(!LN)return;
   if(list.length)await LN.schedule({notifications:list});
   lastSig=sig}catch(e){}}
 function schedSoon(){clearTimeout(schedT);schedT=setTimeout(scheduleAll,2500)}
+let diag='';
 function initNotif(){try{
- if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()){
-  LN=Capacitor.registerPlugin('LocalNotifications');
-  LN.addListener('localNotificationActionPerformed',e=>{const g=e&&e.notification&&e.notification.extra&&e.notification.extra.go;if(!g)return;tab=g[0];if(tab==='adh'&&g[1])sub=g[1];if(tab==='today'&&g[1])cur=g[1];render()});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){rollover(S);render();schedSoon()}});
-  refreshPerm().then(()=>{if(tab==='rem')render();schedSoon()})}
-}catch(e){LN=null}}
+ const cap=window.Capacitor;
+ if(!cap){diag='Capacitor: none';return}
+ const plat=cap.getPlatform?cap.getPlatform():(cap.isNativePlatform&&cap.isNativePlatform()?'native':'web');
+ diag='Capacitor: yes / platform: '+plat;
+ if(plat==='web')return;
+ let p=null;
+ try{if(cap.registerPlugin)p=cap.registerPlugin('LocalNotifications')}catch(e){diag+=' / reg: '+e}
+ if(!p&&cap.Plugins&&cap.Plugins.LocalNotifications)p=cap.Plugins.LocalNotifications;
+ if(!p){diag+=' / plugin: none';return}
+ LN=p;diag+=' / plugin: ok';
+ try{LN.addListener('localNotificationActionPerformed',e=>{const g=e&&e.notification&&e.notification.extra&&e.notification.extra.go;if(!g)return;tab=g[0];if(tab==='adh'&&g[1])sub=g[1];if(tab==='today'&&g[1])cur=g[1];render()})}catch(e){}
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden){rollover(S);render();schedSoon()}});
+ refreshPerm().then(()=>{if(tab==='rem')render();schedSoon()})
+}catch(e){LN=null;diag+=' / err: '+e}}
 async function askPerm(){if(!LN){toast('التنبيهات تعمل داخل التطبيق المثبّت على الهاتف');return}
  try{const p=await LN.requestPermissions();permState=p.display}catch(e){}
  await scheduleAll(true);if(tab==='rem')render();
@@ -408,6 +417,7 @@ function remHTML(){
  return `<div class="tools" style="justify-content:flex-start"><button class="ghost" data-act="tab" data-tab="today">رجوع</button></div><h2>التنبيهات</h2><p class="hint">${st} يُتخطّى تنبيه اليوم إذا أتممتَ ما يخصّه.</p>`
  +REMS.map(r=>{const c=remCfg(r);return `<div class="rr"><label class="rl" for="on_${r.id}">${r.n}</label><input type="time" id="t_${r.id}" data-rid="${r.id}" value="${c.t}" aria-label="وقت ${r.n}"><input type="checkbox" id="on_${r.id}" data-rid="${r.id}" ${c.on?'checked':''}></div>`}).join('')
  +`<div class="tools"><button class="ghost" data-act="perm">تفعيل التنبيهات</button><button class="ghost" data-act="ntest">تنبيه تجريبي</button></div>
+ <p class="note" dir="ltr" style="font-size:11px">${diag}</p>
  <p class="note">الأوقات افتراضية، فعدّلها لتناسب أوقات الصلاة في مدينتك.</p>`}
 
 const C=2*Math.PI*96;
